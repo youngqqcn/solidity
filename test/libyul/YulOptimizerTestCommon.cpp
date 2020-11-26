@@ -33,6 +33,7 @@
 #include <libyul/optimiser/FunctionGrouper.h>
 #include <libyul/optimiser/FunctionHoister.h>
 #include <libyul/optimiser/ExpressionInliner.h>
+#include <libyul/optimiser/FunctionSpecializer.h>
 #include <libyul/optimiser/FullInliner.h>
 #include <libyul/optimiser/ForLoopConditionIntoBody.h>
 #include <libyul/optimiser/ForLoopInitRewriter.h>
@@ -172,6 +173,13 @@ bool YulOptimizerTestCommon::runStep()
 	{
 		disambiguate();
 		FunctionHoister::run(*m_context, *m_ast);
+	}
+	else if (m_optimizerStep == "functionSpecializer")
+	{
+		disambiguate();
+		FunctionHoister::run(*m_context, *m_object->code);
+
+		FunctionSpecializer::run(*m_context, *m_object->code);
 	}
 	else if (m_optimizerStep == "expressionInliner")
 	{
