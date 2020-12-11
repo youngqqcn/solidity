@@ -70,7 +70,7 @@ function ask_expectation_update()
         local expectationFile="${2}"
         while true;
         do
-            read -p "(u)pdate expectation/(q)uit? "
+            read -r -p "(u)pdate expectation/(q)uit? "
             case $REPLY in
                 u* ) echo "$newExpectation" > $expectationFile ; break;;
                 q* ) exit 1;;

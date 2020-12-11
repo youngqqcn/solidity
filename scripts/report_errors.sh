@@ -54,7 +54,7 @@ function post_review_comment_to_github
 
     sed -i 1d $ERROR_LOG
 
-    while read line
+    while read -r line
     do
         ERROR_PATH=$(echo $line | grep -oE ".*\.cpp")
         ERROR_LINE=$(echo $line | grep -oE "[0-9]*")
