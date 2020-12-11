@@ -33,7 +33,7 @@ SOLIDITY_BUILD_DIR="${SOLIDITY_BUILD_DIR:-${REPO_ROOT}/build}"
 
 source "${REPO_ROOT}/scripts/common.sh"
 
-WORKDIR=`mktemp -d`
+WORKDIR=$(mktemp -d)
 CMDLINE_PID=
 
 cleanup() {

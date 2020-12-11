@@ -74,6 +74,6 @@ mkdir -p upload
 cp $BUILD_DIR/libsolc/soljson.js upload/
 cp $BUILD_DIR/libsolc/soljson.js ./
 
-OUTPUT_SIZE=`ls -la soljson.js`
+OUTPUT_SIZE=$(ls -la soljson.js)
 
 echo "Emscripten output size: $OUTPUT_SIZE"

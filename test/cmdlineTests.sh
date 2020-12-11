@@ -94,8 +94,8 @@ function test_solc_behaviour()
     local stderr_expected="${6}"
     local stdout_expectation_file="${7}" # the file to write to when user chooses to update stdout expectation
     local stderr_expectation_file="${8}" # the file to write to when user chooses to update stderr expectation
-    local stdout_path=`mktemp`
-    local stderr_path=`mktemp`
+    local stdout_path=$(mktemp)
+    local stderr_path=$(mktemp)
 
     trap "rm -f $stdout_path $stderr_path" EXIT
 
