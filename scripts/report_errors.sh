@@ -18,7 +18,7 @@ function report_error_to_github
 
     echo $ERROR_MSG
 
-    if [ ! -z $CI ]
+    if [ -n $CI ]
     then
         echo "posting error message to github"
         post_error_to_github
