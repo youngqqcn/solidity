@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -eu
 
 REPO_ROOT="$(dirname "$0")"/..
 USE_DEBUGGER=0
@@ -7,6 +7,7 @@ DEBUGGER="gdb --args"
 BOOST_OPTIONS=
 SOLTEST_OPTIONS=
 SOLIDITY_BUILD_DIR=${SOLIDITY_BUILD_DIR:-${REPO_ROOT}/build}
+DEBUG_PREFIX=
 
 usage() {
 	echo 2>&1 "

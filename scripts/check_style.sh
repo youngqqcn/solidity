@@ -4,7 +4,7 @@
 
 (
 REPO_ROOT="$(dirname "$0")"/..
-cd $REPO_ROOT
+cd $REPO_ROOT || exit 1
 
 WHITESPACE=$(git grep -n -I -E "^.*[[:space:]]+$" | grep -v "test/libsolidity/ASTJSON\|test/libsolidity/ASTRecoveryTests\|test/compilationTests/zeppelin/LICENSE")
 
