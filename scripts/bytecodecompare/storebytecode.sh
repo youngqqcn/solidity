@@ -99,7 +99,7 @@ for (var optimize of [false, true])
 EOF
         echo "Running the compiler..."
         chmod +x solc
-        ./solc *.sol > report.txt
+        ./solc -- *.sol > report.txt
         echo "Finished running the compiler."
     else
         "$REPO_ROOT/scripts/bytecodecompare/prepare_report.py" "$BUILD_DIR/solc/solc"
