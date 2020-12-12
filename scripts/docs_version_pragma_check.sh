@@ -111,7 +111,7 @@ function findMinimalVersion()
         then
             version="$ver"
             break
-        elif ([ $greater == false ]) && versionEqual "$ver" "$pragmaVersion"
+        elif [ $greater == false ] && versionEqual "$ver" "$pragmaVersion"
         then
             version="$ver"
             break
