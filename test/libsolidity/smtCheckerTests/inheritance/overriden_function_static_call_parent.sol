@@ -18,4 +18,4 @@ contract Child is Base {
 }
 // ----
 // Warning 5667: (84-90): Unused function parameter. Remove or comment out the variable name to silence this warning.
-// Warning 6328: (314-328): CHC: Assertion violation happens here.\nCounterexample:\nx = 0\nc = 0\nd = 1\n\nTransaction trace:\nChild.constructor()\nState: x = 0\nChild.bInit(0, 1)\n    BaseBase.init(0, 1) -- internal call
+// Warning 6328: (314-328): CHC: Assertion violation happens here.\nCounterexample:\nx = 1\nc = 1\nd = 0\n\nTransaction trace:\nChild.constructor()\nState: x = 0\nChild.bInit(1, 0)\n    BaseBase.init(1, 0) -- internal call

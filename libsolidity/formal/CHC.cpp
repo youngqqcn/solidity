@@ -258,7 +258,11 @@ void CHC::endVisit(FunctionDefinition const& _function)
 	{
 		auto sum = summary(_function);
 		auto ifacePre = smt::interfacePre(*m_interfaces.at(m_currentContract), *m_currentContract, m_context);
-		if (_function.isPublic())
+		auto const& resolved = contractFunctions(*m_currentContract);
+		if (
+			find(begin(resolved), end(resolved), &_function) != resolved.end() &&
+			_function.isPublic()
+		)
 		{
 			auto txConstraints = m_context.state().txConstraints(_function);
 			m_queryPlaceholders[&_function].push_back({txConstraints && sum, errorFlag().currentValue(), ifacePre});
@@ -622,7 +626,8 @@ void CHC::internalFunctionCall(FunctionCall const& _funCall)
 {
 	solAssert(m_currentContract, "");
 
-	auto [function, contract] = functionCallToDefinition(_funCall, m_currentContract);
+	auto scopeContract = currentScopeContract();
+	auto function = functionCallToDefinition(_funCall, scopeContract, m_currentContract);
 	if (function)
 	{
 		if (m_currentFunction && !m_currentFunction->isConstructor())
@@ -633,7 +638,7 @@ void CHC::internalFunctionCall(FunctionCall const& _funCall)
 		// Libraries can have constants as their "state" variables,
 		// so we need to ensure they were constructed correctly.
 		if (function->annotation().contract->isLibrary())
-			m_context.addAssertion(interface(*contract));
+			m_context.addAssertion(interface(*scopeContract));
 	}
 
 	m_context.addAssertion(predicate(_funCall));
@@ -665,7 +670,7 @@ void CHC::externalFunctionCall(FunctionCall const& _funCall)
 	solAssert(kind == FunctionType::Kind::External || kind == FunctionType::Kind::BareStaticCall, "");
 
 	solAssert(m_currentContract, "");
-	auto [function, contextContract] = functionCallToDefinition(_funCall, m_currentContract);
+	auto function = functionCallToDefinition(_funCall, currentScopeContract(), m_currentContract);
 	if (!function)
 		return;
 
@@ -721,7 +726,7 @@ void CHC::externalFunctionCallToTrustedCode(FunctionCall const& _funCall)
 	solAssert(kind == FunctionType::Kind::External || kind == FunctionType::Kind::BareStaticCall, "");
 
 	solAssert(m_currentContract, "");
-	auto [function, contextContract] = functionCallToDefinition(_funCall, m_currentContract);
+	auto function = functionCallToDefinition(_funCall, currentScopeContract(), m_currentContract);
 	if (!function)
 		return;
 
@@ -959,8 +964,18 @@ void CHC::defineInterfacesAndSummaries(SourceUnit const& _source)
 			auto const& iface = *m_nondetInterfaces.at(contract);
 			addRule(smtutil::Expression::implies(errorFlag().currentValue() == 0, smt::nondetInterface(iface, *contract, m_context, 0, 0)), "base_nondet");
 
-			for (auto const* function: contractFunctions(*contract))
+			auto const& resolved = contractFunctions(*contract);
+			set<FunctionDefinition const*> resolvedSet(begin(resolved), end(resolved));
+			auto toVisit = resolvedSet;
+
+			for (auto const* base: contract->annotation().linearizedBaseContracts)
+				for (auto const* baseFun: base->definedFunctions())
+					if (!baseFun->isConstructor() && baseFun->virtualSemantics())
+						toVisit.insert(baseFun);
+
+			for (auto const* function: toVisit)
 			{
+
 				for (auto var: function->parameters())
 					createVariable(*var);
 				for (auto var: function->returnParameters())
@@ -970,7 +985,7 @@ void CHC::defineInterfacesAndSummaries(SourceUnit const& _source)
 
 				m_summaries[contract].emplace(function, createSummaryBlock(*function, *contract));
 
-				if (!function->isConstructor() && function->isPublic())
+				if (!function->isConstructor() && function->isPublic() && resolvedSet.count(function))
 				{
 					auto state1 = stateVariablesAtIndex(1, *contract);
 					auto state2 = stateVariablesAtIndex(2, *contract);
@@ -1218,7 +1233,8 @@ smtutil::Expression CHC::predicate(FunctionCall const& _funCall)
 	solAssert(kind == FunctionType::Kind::Internal || kind == FunctionType::Kind::External || kind == FunctionType::Kind::BareStaticCall, "");
 
 	solAssert(m_currentContract, "");
-	auto [function, contextContract] = functionCallToDefinition(_funCall, m_currentContract);
+	auto scopeContract = currentScopeContract();
+	auto function = functionCallToDefinition(_funCall, scopeContract, m_currentContract);
 	if (!function)
 		return smtutil::Expression(true);
 
@@ -1235,13 +1251,13 @@ smtutil::Expression CHC::predicate(FunctionCall const& _funCall)
 
 	auto const* contract = function->annotation().contract;
 	auto const& hierarchy = m_currentContract->annotation().linearizedBaseContracts;
-	solAssert(kind != FunctionType::Kind::Internal || contract->isLibrary() || contains(hierarchy, contextContract), "");
+	solAssert(kind != FunctionType::Kind::Internal || contract->isLibrary() || contains(hierarchy, contract), "");
 
 	/// If the call is to a library, we use that library as the called contract.
 	/// If the call is to a contract not in the inheritance hierarchy, we also use that as the called contract.
 	/// Otherwise, the call is to some contract in the inheritance hierarchy of the current contract.
 	/// In this case we use current contract as the called one since the interfaces/predicates are different.
-	auto const* calledContract = contains(hierarchy, contract) ? contextContract : contract;
+	auto const* calledContract = contains(hierarchy, contract) ? m_currentContract : contract;
 	solAssert(calledContract, "");
 
 	bool usesStaticCall = function->stateMutability() == StateMutability::Pure || function->stateMutability() == StateMutability::View;

@@ -27,6 +27,8 @@
 #include <libsmtutil/SMTPortfolio.h>
 #include <libsmtutil/Helpers.h>
 
+#include <range/v3/view.hpp>
+
 #include <boost/range/adaptors.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
@@ -112,6 +114,13 @@ bool SMTEncoder::visit(ContractDefinition const& _contract)
 	for (auto const* function: contractFunctions(_contract))
 		if (!function->isConstructor())
 			function->accept(*this);
+
+	auto const& resolved = contractFunctions(_contract);
+	set<FunctionDefinition const*> resolvedSet(begin(resolved), end(resolved));
+	for (auto const* base: _contract.annotation().linearizedBaseContracts)
+		for (auto const* baseFun: base->definedFunctions())
+			if (!baseFun->isConstructor() && baseFun->virtualSemantics() && !resolvedSet.count(baseFun))
+				baseFun->accept(*this);
 
 	// Constructors need to be handled by the engines separately.
 
@@ -737,6 +746,7 @@ void SMTEncoder::initFunction(FunctionDefinition const& _function)
 	createLocalVariables(_function);
 	m_arrayAssignmentHappened = false;
 	clearIndices(m_currentContract, &_function);
+	m_variableUsage.setCurrentFunction(_function);
 	m_checked = true;
 }
 
@@ -2481,6 +2491,14 @@ bool SMTEncoder::visitedFunction(FunctionDefinition const* _funDef)
 	return false;
 }
 
+ContractDefinition const* SMTEncoder::currentScopeContract()
+{
+	for (auto&& f: m_callStack | ranges::views::reverse)
+		if (auto fun = dynamic_cast<FunctionDefinition const*>(f.first))
+			return fun->annotation().contract;
+	return nullptr;
+}
+
 SMTEncoder::VariableIndices SMTEncoder::copyVariableIndices()
 {
 	VariableIndices indices;
@@ -2625,7 +2643,11 @@ string SMTEncoder::extraComment()
 	return extra;
 }
 
-pair<FunctionDefinition const*, ContractDefinition const*> SMTEncoder::functionCallToDefinition(FunctionCall const& _funCall, ContractDefinition const* _contract)
+FunctionDefinition const* SMTEncoder::functionCallToDefinition(
+	FunctionCall const& _funCall,
+	ContractDefinition const* _scopeContract,
+	ContractDefinition const* _contextContract
+)
 {
 	if (*_funCall.annotation().kind != FunctionCallKind::FunctionCall)
 		return {};
@@ -2637,32 +2659,27 @@ pair<FunctionDefinition const*, ContractDefinition const*> SMTEncoder::functionC
 		calledExpr = innermostTuple(*calledExpr);
 	}
 
-	auto resolveVirtual = [&](auto const* _ref) -> pair<FunctionDefinition const*, ContractDefinition const*> {
+	auto resolveVirtual = [&](auto const* _ref) -> FunctionDefinition const* {
 		VirtualLookup lookup = *_ref->annotation().requiredLookup;
-		solAssert(_contract || lookup == VirtualLookup::Static, "No contract context provided for function lookup resolution!");
+		solAssert(_contextContract || lookup == VirtualLookup::Static, "No contract context provided for function lookup resolution!");
 		auto funDef = dynamic_cast<FunctionDefinition const*>(_ref->annotation().referencedDeclaration);
 		if (!funDef)
-			return {funDef, _contract};
-		ContractDefinition const* contextContract = nullptr;
+			return funDef;
 		switch (lookup)
 		{
 		case VirtualLookup::Virtual:
-			funDef = &funDef->resolveVirtual(*_contract);
-			contextContract = _contract;
-			break;
+			return &funDef->resolveVirtual(*_contextContract);
 		case VirtualLookup::Super:
 		{
-			auto super = _contract->superContract(*_contract);
+			solAssert(_scopeContract, "");
+			auto super = _scopeContract->superContract(*_contextContract);
 			solAssert(super, "Super contract not available.");
-			funDef = &funDef->resolveVirtual(*_contract, super);
-			contextContract = super;
-			break;
+			return &funDef->resolveVirtual(*_contextContract, super);
 		}
 		case VirtualLookup::Static:
-			contextContract = funDef->annotation().contract;
-			break;
+			return funDef;
 		}
-		return {funDef, contextContract};
+		solAssert(false, "");
 	};
 
 	if (Identifier const* fun = dynamic_cast<Identifier const*>(calledExpr))
@@ -2873,9 +2890,9 @@ set<FunctionCall const*> SMTEncoder::collectABICalls(ASTNode const* _node)
 	return ABIFunctions(_node).abiCalls;
 }
 
-void SMTEncoder::createReturnedExpressions(FunctionCall const& _funCall, ContractDefinition const* _contract)
+void SMTEncoder::createReturnedExpressions(FunctionCall const& _funCall, ContractDefinition const* _contextContract)
 {
-	auto [funDef, contextContract] = functionCallToDefinition(_funCall, _contract);
+	auto funDef = functionCallToDefinition(_funCall, currentScopeContract(), _contextContract);
 	if (!funDef)
 		return;
 
@@ -2901,9 +2918,9 @@ void SMTEncoder::createReturnedExpressions(FunctionCall const& _funCall, Contrac
 		defineExpr(_funCall, currentValue(*returnParams.front()));
 }
 
-vector<smtutil::Expression> SMTEncoder::symbolicArguments(FunctionCall const& _funCall, ContractDefinition const* _contract)
+vector<smtutil::Expression> SMTEncoder::symbolicArguments(FunctionCall const& _funCall, ContractDefinition const* _contextContract)
 {
-	auto [funDef, contextContract] = functionCallToDefinition(_funCall, _contract);
+	auto funDef = functionCallToDefinition(_funCall, currentScopeContract(), _contextContract);
 	solAssert(funDef, "");
 
 	vector<smtutil::Expression> args;
