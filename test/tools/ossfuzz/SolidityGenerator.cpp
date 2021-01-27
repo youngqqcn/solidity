@@ -29,6 +29,7 @@ GeneratorBase::GeneratorBase(std::shared_ptr<SolidityGenerator> _mutator)
 {
 	mutator = std::move(_mutator);
 	rand = mutator->randomEngine();
+	state = mutator->testState();
 }
 
 string GeneratorBase::visitChildren()
@@ -42,6 +43,52 @@ string GeneratorBase::visitChildren()
 	for (auto child: randomisedChildren)
 		os << std::visit(GeneratorVisitor{}, child);
 	return os.str();
+}
+
+string TestState::randomPath(set<string> const& _sourceUnitPaths) const
+{
+	auto it = _sourceUnitPaths.begin();
+	/// Advance iterator by n where 0 <= n <= sourceUnitPaths.size() - 1
+	size_t increment = PrngUtil{}.distributionOneToN(_sourceUnitPaths.size(), rand) - 1;
+	solAssert(
+		increment >= 0 && increment < _sourceUnitPaths.size(),
+		"Solc custom mutator: Invalid increment"
+	);
+	advance(it, increment);
+	return *it;
+}
+
+string TestState::randomPath()
+{
+	solAssert(!empty(), "Solc custom mutator: Null test state");
+	return randomPath(sourceUnitPaths);
+}
+
+void TestState::print(std::ostream& _os)
+{
+	_os << "Printing test state" << std::endl;
+	for (auto const& item: sourceUnitPaths)
+		_os << "Source path: " << item << std::endl;
+}
+
+string TestState::randomNonCurrentPath()
+{
+	/// To obtain a source path that is not the currently visited
+	/// source unit itself, we require at least one other source
+	/// unit to be previously visited.
+	solAssert(size() >= 2, "Solc custom mutator: Invalid test state");
+
+	set<string> filteredSourcePaths;
+	string currentPath = currentSourceUnitPath;
+	copy_if(
+		sourceUnitPaths.begin(),
+		sourceUnitPaths.end(),
+		inserter(filteredSourcePaths, filteredSourcePaths.begin()),
+		[currentPath](string const& _item) {
+			return _item != currentPath;
+		}
+	);
+	return randomPath(filteredSourcePaths);
 }
 
 void TestCaseGenerator::setup()
@@ -62,6 +109,7 @@ string TestCaseGenerator::visit()
 			<< sourcePath
 			<< " ===="
 	        << "\n";
+		updateSourcePath(sourcePath);
 		m_numSourceUnits++;
 		os << visitChildren();
 	}
@@ -71,7 +119,8 @@ string TestCaseGenerator::visit()
 void SourceUnitGenerator::setup()
 {
 	addGenerators({
-		mutator->generator<PragmaGenerator>(),
+		mutator->generator<ImportGenerator>(),
+		mutator->generator<PragmaGenerator>()
 	});
 }
 
@@ -93,6 +142,36 @@ string PragmaGenerator::visit()
 	return preamble + abiPragma;
 }
 
+string ImportGenerator::visit()
+{
+	/*
+	 * Case 1: No source units defined
+	 * Case 2: One source unit defined
+	 * Case 3: At least two source units defined
+	 */
+	ostringstream os;
+	// Self import with a small probability only if
+	// there is one source unit present in test.
+	if (state->size() == 1)
+	{
+		if (PrngUtil{}.probable(s_selfImportInvProb, rand))
+			os << "import "
+			   << "\""
+			   << state->randomPath()
+			   << "\";";
+	}
+	else
+	{
+		// Import a different source unit if at least
+		// two source units available.
+		os << "import "
+			<< "\""
+			<< state->randomNonCurrentPath()
+			<< "\";";
+	}
+	return os.str();
+}
+
 template <typename T>
 shared_ptr<T> SolidityGenerator::generator()
 {
@@ -106,6 +185,7 @@ SolidityGenerator::SolidityGenerator(unsigned _seed)
 {
 	m_rand = make_shared<RandomEngine>(_seed);
 	m_generators = {};
+	m_state = make_shared<TestState>(m_rand);
 }
 
 template <size_t I>
