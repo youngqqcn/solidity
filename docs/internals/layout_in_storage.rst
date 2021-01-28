@@ -93,7 +93,7 @@ The value of a mapping key
 If the key type is ``string`` or ``bytes``, a ``keccak256`` hash of the string is first
 computed to compress it to 32 bytes.
 
-If the mapping value is again a
+If the mapping value is a
 non-value type, the positions are found by adding an offset to ``keccak256(k . p)``.
 
 Let us compute the storage location of ``data[4][9].c`` in the following contract.
