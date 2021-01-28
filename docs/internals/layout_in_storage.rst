@@ -84,7 +84,7 @@ statically-sized array data would: One element after the other, potentially shar
 storage slots if the elements are shorter than 32 bytes. Dynamic arrays of dynamic arrays apply this
 rule recursively. The location of ``x[i][j]`` for ``x`` being ``uint32[][]`` is
 computed as follows (again, assuming ``x`` itself is stored at slot ``p``):
-The slot is ``keccak256(keccak2569(p) + i) + floor(j / 8)`` (8 items per slot) and
+The slot is ``keccak256(keccak256(p) + i) + floor(j / 8)`` (8 items per slot - 256/32 = 8) and
 the element can be obtained from the slot data ``v`` using ``(v >> ((j % 8) * 2)) & 0xffff``.
 
 The value of a mapping key
