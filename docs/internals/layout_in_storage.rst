@@ -88,7 +88,7 @@ The slot is ``keccak256(keccak256(p) + i) + floor(j / 8)`` (8 items per slot - 2
 the element can be obtained from the slot data ``v`` using ``(v >> ((j % 8) * 2)) & 0xffff``.
 
 The value of a mapping key
-``k`` is located at ``keccak256(k . p)`` where ``.`` is concatenation. The hash is always a hash of
+``k`` is located at ``keccak256(k . p)`` where ``.`` is concatenation. The hash is always computed over
 64 bytes. If the key type is shorter, it is padded with zeros according to its alignment.
 If the key type is ``string`` or ``bytes``, a ``keccak256`` hash of the string is first
 computed to compress it to 32 bytes.
