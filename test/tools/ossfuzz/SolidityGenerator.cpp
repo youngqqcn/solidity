@@ -58,20 +58,20 @@ string TestState::randomPath(set<string> const& _sourceUnitPaths) const
 	return *it;
 }
 
-string TestState::randomPath()
+string TestState::randomPath() const
 {
 	solAssert(!empty(), "Solc custom mutator: Null test state");
 	return randomPath(sourceUnitPaths);
 }
 
-void TestState::print(std::ostream& _os)
+void TestState::print(std::ostream& _os) const
 {
 	_os << "Printing test state" << std::endl;
 	for (auto const& item: sourceUnitPaths)
 		_os << "Source path: " << item << std::endl;
 }
 
-string TestState::randomNonCurrentPath()
+string TestState::randomNonCurrentPath() const
 {
 	/// To obtain a source path that is not the currently visited
 	/// source unit itself, we require at least one other source

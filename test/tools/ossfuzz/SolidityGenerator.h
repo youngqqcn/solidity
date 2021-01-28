@@ -119,13 +119,13 @@ struct TestState
 		return sourceUnitPaths.size();
 	}
 	/// Prints test state to @param _os.
-	void print(std::ostream& _os);
+	void print(std::ostream& _os) const;
 	/// Returns a randomly chosen path from @param _sourceUnitPaths.
 	[[nodiscard]] std::string randomPath(std::set<std::string> const& _sourceUnitPaths) const;
 	/// Returns a randomly chosen path from @name sourceUnitPaths.
-	std::string randomPath();
+	[[nodiscard]] std::string randomPath() const;
 	/// Returns a randomly chosen non current source unit path.
-	std::string randomNonCurrentPath();
+	[[nodiscard]] std::string randomNonCurrentPath() const;
 	/// List of source paths in test input.
 	std::set<std::string> sourceUnitPaths;
 	/// Source path being currently visited.
