@@ -16,6 +16,7 @@
 #include <libsolutil/Whiskers.h>
 #include <libyul/Exceptions.h>
 #include <test/Common.h>
+#include <libevmasm/GasMeter.h>
 #include <boost/algorithm/string.hpp>
 #include <boost/algorithm/string/predicate.hpp>
 #include <boost/algorithm/string/trim.hpp>
@@ -311,16 +312,23 @@ bool SemanticTest::checkGasCostExpectation(TestFunctionCall& io_test, bool _comp
 		(_compileViaYul ? "ir"s : "legacy"s) +
 		(m_optimiserSettings == OptimiserSettings::full() ? "Optimized" : "");
 
+	u256 gasUsed = m_gasUsed;
+	if (io_test.call().kind == FunctionCall::Kind::Constructor)
+		gasUsed -= evmasm::GasMeter::dataGas(
+			m_compiler.cborMetadata(m_compiler.lastContractName()),
+			true,
+			m_evmVersion
+		);
 	if (
-		(!m_enforceGasCost || m_gasUsed < m_enforceGasCostMinValue) &&
+		(!m_enforceGasCost || gasUsed < m_enforceGasCostMinValue) &&
 		io_test.call().expectations.gasUsed.count(setting) == 0
 	)
 		return true;
 
-	io_test.setGasCost(setting, m_gasUsed);
+	io_test.setGasCost(setting, gasUsed);
 	return
 		io_test.call().expectations.gasUsed.count(setting) > 0 &&
-		m_gasUsed == io_test.call().expectations.gasUsed.at(setting);
+		gasUsed == io_test.call().expectations.gasUsed.at(setting);
 }
 
 void SemanticTest::printSource(ostream& _stream, string const& _linePrefix, bool _formatted) const
