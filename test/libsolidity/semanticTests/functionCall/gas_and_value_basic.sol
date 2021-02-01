@@ -41,6 +41,10 @@ contract test {
 // compileViaYul: also
 // ----
 // constructor(), 20 wei ->
+// gas ir: 635671
+// gas irOptimized: 355610
+// gas legacy: 441567
+// gas legacyOptimized: 330789
 // sendAmount(uint256): 5 -> 5
 // outOfGas() -> FAILURE # call to helper should not succeed but amount should be transferred anyway #
 // checkState() -> false, 15

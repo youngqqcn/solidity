@@ -23,6 +23,9 @@ contract C {
 // compileViaYul: also
 // ----
 // constructor(), 23 wei ->
+// gas ir: 171051
+// gas irOptimized: 124560
+// gas legacy: 118567
 // f() -> 0
 // g() -> 1
 // h() -> 23

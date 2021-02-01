@@ -65,3 +65,5 @@ contract C {
 // compileViaYul: false
 // ----
 // constructor() ->
+// gas legacy: 603359
+// gas legacyOptimized: 369783
