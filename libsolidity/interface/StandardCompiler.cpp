@@ -115,10 +115,11 @@ bool hashMatchesContent(string const& _hash, string const& _content)
 	{
 		return dev::h256(_hash) == dev::keccak256(_content);
 	}
-	catch (dev::BadHexCharacter)
+	catch (...)
 	{
-		return false;
+		// return false;
 	}
+    return false;
 }
 
 StringMap createSourceList(Json::Value const& _input)
